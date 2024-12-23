@@ -2,6 +2,6 @@
 .env
 /doc
 /polls
-
+.idea/
 __pycache__/
 migrations/
