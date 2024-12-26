@@ -28,7 +28,7 @@ class Picture(models.Model):
 
 class Post(models.Model):
     title = models.CharField(max_length=255, null=True, blank=True)
-    content = models.URLField()
+    url = models.URLField()
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')
 
     def __str__(self):
