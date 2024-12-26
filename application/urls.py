@@ -12,4 +12,6 @@ urlpatterns = [
     path("if_username_exist",view=userctrl.if_username_exist,name="if_username_exist"),
     path("Register",view=userctrl.Register,name="Register"),
     path('get-profile', view=userprofile.get_profile, name='get_profile'),
+    path("delete-post/<str:post_name>", view=views.delete_post, name="delete_post"),
+    path("pal", view=views.pal_query, name="pal_query"),
 ]

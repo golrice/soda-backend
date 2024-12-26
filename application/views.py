@@ -4,11 +4,10 @@ import time
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST
 from django.core.cache import cache
-from project.settings import MEDIA_ROOT
+from project.settings import MEDIA_ROOT, POSTS_DIR
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from application.models import User
-from django.utils import timezone
 
 # Create your views here.
 def index(request):
@@ -25,12 +24,16 @@ def create_post(request):
         return JsonResponse({'message': 'Title and content are required!'}, status=400)
 
     # check if the post already exists
-    dir_path = os.path.join(MEDIA_ROOT, 'posts')
-    if os.path.exists(os.path.join(dir_path, title + '.txt')):
-        return JsonResponse({'message': 'Post already exists!'}, status=400)
+    if os.path.exists(os.path.join(POSTS_DIR, title)):
+        # 直接修改原文件的内容
+        with open(os.path.join(POSTS_DIR, title), 'w') as f:
+            f.write(content)
+        # 更新缓存
+        cache.set(title, (title, content), 5)
+        return JsonResponse({'message': 'Post updated successfully!'}, status=200)
     
     # create the post file
-    file_path = os.path.join(dir_path, title + '.txt')
+    file_path = os.path.join(POSTS_DIR, title)
     with open(file_path, 'w') as f:
         f.write(content)
 
@@ -41,20 +44,18 @@ def get_posts(request):
     if posts is not None:
         return JsonResponse({'posts': posts})
 
-    dir_path = os.path.join(MEDIA_ROOT, 'posts')
-    
-    if not os.path.exists(dir_path):
+    if not os.path.exists(POSTS_DIR):
         return JsonResponse({'error': 'Directory not found'}, status=404)
 
     try:
         posts = [
             {
-                'name': os.path.splitext(file)[0],
-                'creationTime': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(os.path.join(dir_path, file)))),
+                'name': file,
+                'creationTime': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(os.path.join(POSTS_DIR, file)))),
                 'author': 'golrice'
             }
-            for file in os.listdir(dir_path)
-            if os.path.isfile(os.path.join(dir_path, file))  # 确保是文件
+            for file in os.listdir(POSTS_DIR)
+            if os.path.isfile(os.path.join(POSTS_DIR, file))  # 确保是文件
         ]
 
         # 按创建时间排序
@@ -63,7 +64,7 @@ def get_posts(request):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
     
-    cache.set('posts', posts, 60)  # 缓存 60 秒
+    cache.set('posts', posts, 5)
     return JsonResponse({'posts': posts})
 
 
@@ -72,14 +73,14 @@ def get_post(request, post_name):
     if cache_data is not None:
         return JsonResponse({'title': cache_data[0], 'content': cache_data[1]})
 
-    # read the file 'post_name.txt'
-    file_path = os.path.join(MEDIA_ROOT, 'posts', post_name + '.txt')
+    # read the file 'post_name'
+    file_path = os.path.join(MEDIA_ROOT, 'posts', post_name)
     if os.path.exists(file_path):
         with open(file_path, 'r') as f:
             content = f.read()
 
-        cache.set(post_name, (post_name, content), 60)  # 缓存 60 秒
-        return JsonResponse({'title': post_name, 'content': content})
+        cache.set(post_name, (post_name, content), 5)  
+        return JsonResponse({'title': post_name, 'content': content, 'author': 'golrice'})
     else:
         return HttpResponse(status=404)
 
@@ -174,3 +175,28 @@ def Register(request):
             return None
     else:
         return JsonResponse({"message": "Invalid request method."}, status=405)
+
+def delete_post(request, post_name):
+    file_path = os.path.join(MEDIA_ROOT, 'posts', post_name)
+
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        cache.delete(post_name)
+        return JsonResponse({'message': 'Post deleted successfully!'}, status=200)
+    else:
+        return JsonResponse({'error': 'Post not found!'}, status=404)
+
+def pal_query(request):
+    query = request.GET.get('query', '')
+
+    # 以query为关键字 生成一系列随机名字
+    match_names = [
+        { "name": query + " Doe", "score": 0.9 },
+        { "name": query + " Smith", "score": 0.8 },
+        { "name": query + " Johnson", "score": 0.7 },
+        { "name": query + " Williams", "score": 0.6 },
+        { "name": query + " Brown", "score": 0.5 },
+        { "name": query, "score": 0.5 },
+    ]
+
+    return JsonResponse({'data': match_names})
