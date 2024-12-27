@@ -145,6 +145,9 @@ CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000', 'http:
 # ... 其他设置
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+os.makedirs(MEDIA_ROOT, exist_ok=True)
+POSTS_DIR = os.path.join(MEDIA_ROOT, 'posts')
+os.makedirs(POSTS_DIR, exist_ok=True)
 
 # settings.py
 
