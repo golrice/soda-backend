@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 class User(models.Model):
     username = models.CharField(max_length=255, unique=True)
@@ -91,3 +92,23 @@ class UserFriends(models.Model):
 
     def __str__(self):
         return f"{self.user.username} is friends with {self.friend.username}"
+
+
+class UserBehavior(models.Model):
+    # 用户外键，关联到User模型
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='behaviors')
+    # 行为类型（如：浏览、点赞、评论等）用一个数字表示，比如0代表浏览，1代表点赞，2代表评论
+    behavior_type = models.IntegerField()
+    # 行为对象，可能是帖子、图片等，这里使用外键关联到Post模型
+    target = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='behaviors')
+    # 行为发生的时间
+    timestamp = models.DateTimeField(default=timezone.now)
+    # 行为的额外数据，比如浏览时间、点赞的权重等，目前用不上
+    # extra_data = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        # 确保每个用户对于同一目标的行为是唯一的
+        unique_together = ('user', 'target', 'behavior_type')
+
+    def __str__(self):
+        return f"{self.user.username} {self.behavior_type} on {self.target.title} at {self.timestamp}"
