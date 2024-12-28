@@ -6,7 +6,36 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from project.settings import MEDIA_ROOT, POSTS_DIR
 from application.models import Post, User
-from application.models import PostTag
+from application.models import Tag
+from application.post_tag import get_tags
+
+def save_tags_to_post(post, answer):
+    main_tag_name = answer.get('main', '')
+    sub_tag_names = [answer.get(f'label{i+1}', '') for i in range(5)]
+
+    # 去重并移除主标签
+    sub_tag_names = list(set(sub_tag_names))
+    if main_tag_name in sub_tag_names:
+        sub_tag_names.remove(main_tag_name)
+    sub_tag_names = [name for name in sub_tag_names if name]  # 过滤空字符串
+    sub_tag_names = sub_tag_names[:5]  # 保证不超过五个
+    # print(main_tag_name, sub_tag_names)
+    # 获取或创建标签
+    if main_tag_name:
+        main_tag, _ = Tag.objects.get_or_create(tag_name=main_tag_name)
+    else:
+        main_tag = None
+
+    sub_tags = []
+    for name in sub_tag_names:
+        if name:
+            tag, _ = Tag.objects.get_or_create(tag_name=name)
+            sub_tags.append(tag)
+
+    # 设置标签并保存
+    post.main_tag = main_tag
+    post.sub_tags.set(sub_tags)
+    post.save()
 
 @require_POST
 def create_post(request):
@@ -24,6 +53,9 @@ def create_post(request):
         try:
             with open(os.path.join(POSTS_DIR, title), 'w') as f:
                 f.write(content)
+            post = Post.objects.get(url=os.path.join(POSTS_DIR, title))
+            answer = get_tags(content)
+            save_tags_to_post(post, answer)
         except Exception as e:
             return JsonResponse({'message': str(e)}, status=500)
         return JsonResponse({'message': 'Post updated successfully!'}, status=200)
@@ -42,6 +74,8 @@ def create_post(request):
         post.save()
     except Exception as e:
         return JsonResponse({'message': str(e)}, status=500)
+    answer = get_tags(content)
+    save_tags_to_post(post, answer)
 
     return JsonResponse({'message': 'Post created successfully!'}, status=200)
 

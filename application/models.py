@@ -1,5 +1,7 @@
 from django.db import models
 from django.utils import timezone
+from django.core.exceptions import ValidationError
+
 
 class User(models.Model):
     username = models.CharField(max_length=255, unique=True)
@@ -29,8 +31,16 @@ class Picture(models.Model):
 
 class Post(models.Model):
     title = models.CharField(max_length=255, null=True, blank=True)
-    url = models.URLField()
+    url = models.URLField(unique=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')
+    main_tag = models.ForeignKey(Tag, related_name='main_posts', on_delete=models.SET_NULL, null=True, blank=True)
+    sub_tags = models.ManyToManyField(Tag, related_name='sub_posts', blank=True)
+
+    def clean(self):
+        if self.main_tag and self.main_tag in self.sub_tags.all():
+            raise ValidationError("主标签不能是小标签之一。")
+        if self.sub_tags.count() > 5:
+            raise ValidationError("最多只能选择五个小标签。")
 
     def __str__(self):
         return self.title or "Untitled"
@@ -62,16 +72,6 @@ class UserTag(models.Model):
 
     def __str__(self):
         return f"{self.user.username} tagged with {self.tag.tag_name}"
-
-class PostTag(models.Model):
-    post = models.ForeignKey(Post, on_delete=models.CASCADE)
-    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = ('post', 'tag')  
-
-    def __str__(self):
-        return f"{self.post.title} tagged with {self.tag.tag_name}"
 
 class UserFriends(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friends')
