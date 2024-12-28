@@ -1,16 +1,14 @@
 import json
 import os
-import time
-from django.http import HttpResponse, JsonResponse
-from django.views.decorators.http import require_POST
-from django.core.cache import cache
-from project.settings import MEDIA_ROOT
+from django.http import JsonResponse
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from application.models import User
 from django.utils import timezone
-# Create your views here.
+import jwt
+import datetime
 
+from project.settings import JWT_SECRET_KEY
 
 def verify_password(request):
     if request.method == "POST":
@@ -38,7 +36,8 @@ def verify_password(request):
             if stored_password_hash == sha256_hash:
                 user.last_login = timezone.now()
                 user.save()
-                return JsonResponse({"message": "Password is correct."}, status=200)
+                token = jwt.encode({"username": user.username, "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)}, JWT_SECRET_KEY)
+                return JsonResponse({"message": "Password is correct.", "token": token}, status=200)
             else:
                 return JsonResponse({"message": "Incorrect username or password."}, status=401)
 
@@ -59,7 +58,9 @@ def if_username_exist(request):
             # 检查是否提供了用户名
             if not username:
                 return JsonResponse({"message": "Username is required."}, status=400)
-
+            # 不允许出现 - 符号 和空格
+            if '-' in username or ' ' in username:
+                return JsonResponse({"message": "Username should not contain invalid symbol."}, status=400)
             # 检查用户名是否存在
             if User.objects.filter(username=username).exists():
                 return JsonResponse({"exists": True}, status=200)
@@ -92,9 +93,6 @@ def Register(request):
             return JsonResponse({"message":"Register Succeeded."}, status=200)
         except json.JSONDecodeError:
             return JsonResponse({"message": "Invalid JSON."}, status=400)
-        except Exception as e:
-            # 记录异常日志（如需要）
-            return JsonResponse({"message": str(e)}, status=500)
         except IntegrityError as e:
         # 如果违反了数据库约束（例如，用户名已存在）
             print(f"Database IntegrityError: {str(e)}")
@@ -104,6 +102,9 @@ def Register(request):
         # 如果验证失败（例如，电子邮件格式错误）
             print(f"ValidationError: {str(e)}")
             return None
+        except Exception as e:
+            # 记录异常日志（如需要）
+            return JsonResponse({"message": str(e)}, status=500)
     else:
         return JsonResponse({"message": "Invalid request method."}, status=405)
 

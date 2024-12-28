@@ -36,6 +36,8 @@ ALLOWED_HOSTS = ['localhost']
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
+    "chat.apps.ChatConfig",
     'application.apps.ApplicationConfig',
     'corsheaders',
     'django.contrib.admin',
@@ -145,6 +147,10 @@ CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000', 'http:
 # ... 其他设置
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+os.makedirs(MEDIA_ROOT, exist_ok=True)
+POSTS_DIR = os.path.join(MEDIA_ROOT, 'posts')
+os.makedirs(POSTS_DIR, exist_ok=True)
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
 
 # settings.py
 
@@ -157,3 +163,13 @@ CACHES = {
     }
 }
 
+# Daphne
+ASGI_APPLICATION = "project.asgi.application"
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
