@@ -52,16 +52,6 @@ class Like(models.Model):
     def __str__(self):
         return f"Like by {self.author.username} on {self.post.title}"
 
-class Message(models.Model):
-    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
-    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
-
-    class Meta:
-        unique_together = ('sender', 'receiver')
-
-    def __str__(self):
-        return f"Message from {self.sender.username} to {self.receiver.username}"
-
 class UserTag(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE)

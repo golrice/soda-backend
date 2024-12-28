@@ -8,6 +8,8 @@ from django.utils import timezone
 import jwt
 import datetime
 
+from project.settings import JWT_SECRET_KEY
+
 def verify_password(request):
     if request.method == "POST":
         try:
@@ -34,7 +36,7 @@ def verify_password(request):
             if stored_password_hash == sha256_hash:
                 user.last_login = timezone.now()
                 user.save()
-                token = jwt.encode({"username": user.username, "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)}, os.getenv("JWT_SECRET_KEY"))
+                token = jwt.encode({"username": user.username, "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)}, JWT_SECRET_KEY)
                 return JsonResponse({"message": "Password is correct.", "token": token}, status=200)
             else:
                 return JsonResponse({"message": "Incorrect username or password."}, status=401)
@@ -56,6 +58,10 @@ def if_username_exist(request):
             # 检查是否提供了用户名
             if not username:
                 return JsonResponse({"message": "Username is required."}, status=400)
+            
+            # 不允许出现 - 符号 和空格
+            if '-' in username or ' ' in username:
+                return JsonResponse({"message": "Username should not contain invalid symbol."}, status=400)
 
             # 检查用户名是否存在
             if User.objects.filter(username=username).exists():

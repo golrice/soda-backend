@@ -4,6 +4,7 @@ from . import views
 from . import userctrl
 from . import userprofile
 from . import view_post
+
 urlpatterns = [
     path("", views.index, name="index"),
     path("get-post/<str:post_name>", view=view_post.get_post, name="get_post"),
@@ -16,5 +17,5 @@ urlpatterns = [
     path("if_username_exist",view=userctrl.if_username_exist,name="if_username_exist"),
     path("Register",view=userctrl.Register,name="Register"),
     path('get-profile', view=userprofile.get_profile, name='get_profile'),
-    path('update-profile', view=userprofile.update_profile, name='update_profile')
+    path('update-profile', view=userprofile.update_profile, name='update_profile'),
 ]
