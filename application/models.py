@@ -35,6 +35,7 @@ class Post(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')
     main_tag = models.ForeignKey(Tag, related_name='main_posts', on_delete=models.SET_NULL, null=True, blank=True)
     sub_tags = models.ManyToManyField(Tag, related_name='sub_posts', blank=True)
+    view_count = models.IntegerField(default=0)
 
     def clean(self):
         if self.main_tag and self.main_tag in self.sub_tags.all():
