@@ -125,18 +125,19 @@ def get_posts(request):
 
     try:
         posts = []
-        for post in Post.objects.all():
-            if not os.path.exists(post.url):
-                continue
-            with open(post.url, 'r') as f:
-                posts.append({
-                    'title': post.title,
-                    'author': post.author.username,
-                    'creationTime': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(post.url))),
-                })
+        # for post in Post.objects.all():
+        #     if not os.path.exists(post.url):
+        #         continue
+        #     with open(post.url, 'r') as f:
+        #         posts.append({
+        #             'title': post.title,
+        #             'author': post.author.username,
+        #             'creationTime': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(post.url))),
+        #         })
 
-        # 按创建时间排序
-        posts.sort(key=lambda x: x['creationTime'], reverse=True)
+        # # 按创建时间排序
+        # posts.sort(key=lambda x: x['creationTime'], reverse=True)
+        # print(posts)
 
         # 获取Authorization头部中的username
         token = request.headers.get('Authorization')
@@ -150,6 +151,18 @@ def get_posts(request):
         if flag:
             user = User.objects.get(username=token)
             new_posts = recommend_posts(user)
+            # print(new_posts)
+    
+        for post in new_posts:
+            if not os.path.exists(post.url):
+                continue
+            # print(post.title)
+            with open(post.url, 'r') as f:
+                posts.append({
+                    'title': post.title,
+                    'author': post.author.username,
+                    'creationTime': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(post.url))),
+                })
 
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
