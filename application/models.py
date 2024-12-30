@@ -35,6 +35,8 @@ class Post(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')
     main_tag = models.ForeignKey(Tag, related_name='main_posts', on_delete=models.SET_NULL, null=True, blank=True)
     sub_tags = models.ManyToManyField(Tag, related_name='sub_posts', blank=True)
+    view_count = models.IntegerField(default=0)
+    timestamp = models.DateTimeField(default=timezone.now)
 
     def clean(self):
         if self.main_tag and self.main_tag in self.sub_tags.all():
@@ -73,16 +75,6 @@ class UserTag(models.Model):
     def __str__(self):
         return f"{self.user.username} tagged with {self.tag.tag_name}"
 
-class PostTag(models.Model):
-    post = models.ForeignKey(Post, on_delete=models.CASCADE)
-    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = ('post', 'tag')  
-
-    def __str__(self):
-        return f"{self.post.title} tagged with {self.tag.tag_name}"
-
 class Follow(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='followers',to_field="username")
     friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friends',to_field="username")
@@ -108,7 +100,7 @@ class UserBehavior(models.Model):
 
     class Meta:
         # 确保每个用户对于同一目标的行为是唯一的
-        unique_together = ('user', 'target', 'behavior_type')
+        unique_together = ('user', 'target', 'behavior_type', 'timestamp')
 
     def __str__(self):
         return f"{self.user.username} {self.behavior_type} on {self.target.title} at {self.timestamp}"

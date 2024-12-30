@@ -8,6 +8,28 @@ from project.settings import MEDIA_ROOT, POSTS_DIR
 from application.models import Post, User
 from application.models import Tag
 from application.post_tag import get_tags
+from django.db.models import F
+from application.push_post import recommend_posts
+import re
+
+def is_valid_filename(filename):
+    # 定义非法字符的正则表达式
+    illegal_chars = r'[<>:"/\\|?*]'
+    # 检查是否包含非法字符
+    if re.search(illegal_chars, filename):
+        return False
+    # 检查是否以空格开头或结尾
+    if filename.startswith(' ') or filename.endswith(' '):
+        return False
+    # 检查是否为Windows保留名称（不区分大小写）这是AI给我的保留名称，不知道有没有其他的，也不知道linux的会不会不一样
+    windows_reserved_names = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9']
+    if filename.upper() in windows_reserved_names:
+        return False
+    # 检查文件名长度（例如，最大255个字符）
+    if len(filename) > 100:
+        return False
+    # 如果所有检查都通过，则文件名合法
+    return True
 
 def save_tags_to_post(post, answer):
     main_tag_name = answer.get('main', '')
@@ -38,8 +60,12 @@ def save_tags_to_post(post, answer):
     post.save()
 
 @require_POST
-def create_post(request):
-    data = json.loads(request.body.decode('utf-8'))
+def create_post(request):    
+    # 解析请求体中的JSON数据
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON in request body'}, status=400)
     title: str = data['title']
     content: str =  data['content']
     username: str = data['username']
@@ -47,6 +73,10 @@ def create_post(request):
 
     if title == '' or content == '':
         return JsonResponse({'message': 'Title and content are required!'}, status=400)
+
+    # 检查标题是否是合法的文件名
+    if not is_valid_filename(title):
+        return JsonResponse({'error': 'Invalid title, it cannot be used as a valid filename'}, status=400)
 
     # check if the post already exists
     if os.path.exists(os.path.join(POSTS_DIR, title)) and not prv_title:
@@ -94,28 +124,45 @@ def get_posts(request):
         return JsonResponse({'error': 'Directory not found'}, status=404)
 
     try:
-        # posts = [
-        #     {
-        #         'name': file,
-        #         'creationTime': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(os.path.join(POSTS_DIR, file)))),
-        #         'author': 'golrice'
-        #     }
-        #     for file in os.listdir(POSTS_DIR)
-        #     if os.path.isfile(os.path.join(POSTS_DIR, file))  # 确保是文件
-        # ]
         posts = []
-        for post in Post.objects.all():
+        # for post in Post.objects.all():
+        #     if not os.path.exists(post.url):
+        #         continue
+        #     with open(post.url, 'r') as f:
+        #         posts.append({
+        #             'title': post.title,
+        #             'author': post.author.username,
+        #             'creationTime': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(post.url))),
+        #         })
+
+        # # 按创建时间排序
+        # posts.sort(key=lambda x: x['creationTime'], reverse=True)
+        # print(posts)
+
+        # 获取Authorization头部中的username
+        token = request.headers.get('Authorization')
+
+        flag = False
+        # 使用Bearer Token，则进一步提取token字符串（但咱这里是username）
+        if token and token.startswith('Bearer '):
+            token = token.split(' ')[1]
+            flag = True
+        
+        if flag:
+            user = User.objects.get(username=token)
+            new_posts = recommend_posts(user)
+            # print(new_posts)
+    
+        for post in new_posts:
             if not os.path.exists(post.url):
                 continue
+            # print(post.title)
             with open(post.url, 'r') as f:
                 posts.append({
                     'title': post.title,
                     'author': post.author.username,
                     'creationTime': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(post.url))),
                 })
-
-        # 按创建时间排序
-        posts.sort(key=lambda x: x['creationTime'], reverse=True)
 
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
@@ -137,12 +184,39 @@ def get_posts_by_username(request, username):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+from application.models import UserBehavior
+from django.utils import timezone
 def get_post(request, post_name):
+    # 获取Authorization头部中的username
+    token = request.headers.get('Authorization')
+
+    flag = False
+    # 使用Bearer Token，则进一步提取token字符串（但咱这里是username）
+    if token and token.startswith('Bearer '):
+        token = token.split(' ')[1]
+        flag = True
+    # else:
+    #     return JsonResponse({'error': '请登录以享受完整体验！'}, status=401)
     # read the file 'post_name'
     post = Post.objects.filter(title=post_name).first()
     if os.path.exists(post.url):
         with open(post.url, 'r') as f:
             content = f.read()
+
+        if flag and str(post.author) != token:
+            _user = User.objects.get(username=token)
+            # 记录用户行为信息
+            UserBehavior.objects.create(
+                user=_user,
+                behavior_type=0,  # 假设0代表浏览行为
+                target=post,
+                timestamp=timezone.now(),
+            )
+        
+        if flag and str(post.author) != token:
+            # 如果不是作者，增加浏览次数
+            post.view_count = F('view_count') + 1
+            post.save()
 
         return JsonResponse({'title': post_name, 'content': content, 'author': post.author.username})
     else:
