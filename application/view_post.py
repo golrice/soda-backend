@@ -9,6 +9,7 @@ from application.models import Post, User
 from application.models import Tag
 from application.post_tag import get_tags
 from django.db.models import F
+from application.push_post import recommend_posts
 import re
 
 def is_valid_filename(filename):
@@ -124,6 +125,19 @@ def get_posts(request):
 
         # 按创建时间排序
         posts.sort(key=lambda x: x['creationTime'], reverse=True)
+
+        # 获取Authorization头部中的username
+        token = request.headers.get('Authorization')
+
+        flag = False
+        # 使用Bearer Token，则进一步提取token字符串（但咱这里是username）
+        if token and token.startswith('Bearer '):
+            token = token.split(' ')[1]
+            flag = True
+        
+        if flag:
+            user = User.objects.get(username=token)
+            new_posts = recommend_posts(user)
 
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
