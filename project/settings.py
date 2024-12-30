@@ -153,6 +153,7 @@ os.makedirs(MEDIA_ROOT, exist_ok=True)
 POSTS_DIR = os.path.join(MEDIA_ROOT, 'posts')
 os.makedirs(POSTS_DIR, exist_ok=True)
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 # settings.py
 
