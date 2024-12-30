@@ -79,16 +79,18 @@ def follow(request):
     currentUser:str = data['currentUser']
     targetUser:str = data['targetUser']
     followAction:bool = data['followAction']
+
+    target_user = User.objects.filter(username=targetUser).first()
+    current_user = User.objects.filter(username=currentUser).first()
+
     try:
-        existing_message = Follow.objects.filter(friend_id=targetUser, user_id=currentUser).first()
+        existing_message = Follow.objects.filter(friend=target_user, user=current_user).first()
         if not existing_message and not followAction:
             target_user = User.objects.filter(username=targetUser).first()
             current_user = User.objects.filter(username=currentUser).first()
             followship = Follow.objects.create(friend=target_user, user=current_user)
-            print(followship)
-            Follow.save()
         elif existing_message and followAction:
-            existing_message = Follow.objects.filter(friend_id=targetUser, user_id=currentUser).delete()
+            existing_message = Follow.objects.filter(friend=target_user, user=current_user).delete()
         return JsonResponse({'message': 'Profile updated successfully'}, status=200)
     except User.DoesNotExist:
         return JsonResponse({'error': 'User not found'}, status=404)
@@ -101,9 +103,10 @@ def get_following(request):
     if username is None:
         return JsonResponse({'error': 'No username provided'}, status=400)
     
-    # 获取关注该用户的所有粉丝（即 user=username 的所有记录）
-    friends = Follow.objects.filter(user=username).values_list('friend__username', flat=True)
-    
+    user = User.objects.filter(username=username).first()
+    # 获取该用户关注的所有用户（即 user=username 的所有记录）
+    friends = Follow.objects.filter(user=user).values_list('friend__username', flat=True)
+
     # 将查询结果转为列表并返回
     return JsonResponse({'friends': list(friends)}, status=200)
 
@@ -113,9 +116,11 @@ def get_followers(request):
     
     if username is None:
         return JsonResponse({'error': 'No username provided'}, status=400)
+
+    user = User.objects.filter(username=username).first()
     
     # 查询所有关注该用户的粉丝（friend=username）
-    friends = Follow.objects.filter(friend=username).values_list('user__username', flat=True)
-    
+    friends = Follow.objects.filter(friend=user).values_list('user__username', flat=True)
+
     # 将用户名列表转换成普通的列表并返回
     return JsonResponse({'friends': list(friends)}, status=200)

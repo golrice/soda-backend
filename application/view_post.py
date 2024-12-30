@@ -183,6 +183,5 @@ def pal_query(request):
     users = User.objects.filter(username__icontains=query)
     # 将users转化为json格式
     users_json = [user.username for user in users]
-    print(users_json)
 
     return JsonResponse({'data': users_json})
