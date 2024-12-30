@@ -58,11 +58,9 @@ def if_username_exist(request):
             # 检查是否提供了用户名
             if not username:
                 return JsonResponse({"message": "Username is required."}, status=400)
-            
             # 不允许出现 - 符号 和空格
             if '-' in username or ' ' in username:
                 return JsonResponse({"message": "Username should not contain invalid symbol."}, status=400)
-
             # 检查用户名是否存在
             if User.objects.filter(username=username).exists():
                 return JsonResponse({"exists": True}, status=200)

@@ -18,4 +18,7 @@ urlpatterns = [
     path("Register",view=userctrl.Register,name="Register"),
     path('get-profile', view=userprofile.get_profile, name='get_profile'),
     path('update-profile', view=userprofile.update_profile, name='update_profile'),
+    path('follow', view=userprofile.follow,name='follow'),
+    path('get-followers',view=userprofile.get_followers,name='get-followers'),
+    path('get-following',view=userprofile.get_following,name='get-following'),
 ]

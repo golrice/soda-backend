@@ -11,7 +11,7 @@ class User(models.Model):
     last_name = models.CharField(max_length=255,null=True)
     email = models.CharField(max_length=255,null=True)
     date_joined = models.DateField(null=True)
-    icon = models.URLField(null=True, blank=True)
+    icon = models.ImageField(upload_to='avatars/',null=True)
     intros = models.TextField(null=True)
     def __str__(self):
         return self.username
@@ -73,9 +73,19 @@ class UserTag(models.Model):
     def __str__(self):
         return f"{self.user.username} tagged with {self.tag.tag_name}"
 
-class UserFriends(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friends')
-    friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friend_of')
+class PostTag(models.Model):
+    post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = ('post', 'tag')  
+
+    def __str__(self):
+        return f"{self.post.title} tagged with {self.tag.tag_name}"
+
+class Follow(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='followers',to_field="username")
+    friend = models.ForeignKey(User, on_delete=models.CASCADE, related_name='friends',to_field="username")
 
     class Meta:
         unique_together = ('user', 'friend')
