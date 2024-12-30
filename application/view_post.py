@@ -113,15 +113,6 @@ def get_posts(request):
         return JsonResponse({'error': 'Directory not found'}, status=404)
 
     try:
-        # posts = [
-        #     {
-        #         'name': file,
-        #         'creationTime': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getctime(os.path.join(POSTS_DIR, file)))),
-        #         'author': 'golrice'
-        #     }
-        #     for file in os.listdir(POSTS_DIR)
-        #     if os.path.isfile(os.path.join(POSTS_DIR, file))  # 确保是文件
-        # ]
         posts = []
         for post in Post.objects.all():
             with open(post.url, 'r') as f:
@@ -164,17 +155,16 @@ def get_post(request, post_name):
     # 使用Bearer Token，则进一步提取token字符串（但咱这里是username）
     if token and token.startswith('Bearer '):
         token = token.split(' ')[1]
-        # print(token)
         flag = True
-    else:
-        JsonResponse({'error': '请登录以享受完整体验！'}, status=401)
+    # else:
+    #     return JsonResponse({'error': '请登录以享受完整体验！'}, status=401)
     # read the file 'post_name'
     post = Post.objects.filter(title=post_name).first()
     if os.path.exists(post.url):
         with open(post.url, 'r') as f:
             content = f.read()
 
-        if flag and post.author != token:
+        if flag and str(post.author) != token:
             _user = User.objects.get(username=token)
             # 记录用户行为信息
             UserBehavior.objects.create(
@@ -184,7 +174,7 @@ def get_post(request, post_name):
                 timestamp=timezone.now(),
             )
         
-        if not flag or post.author != token:
+        if flag and str(post.author) != token:
             # 如果不是作者，增加浏览次数
             post.view_count = F('view_count') + 1
             post.save()

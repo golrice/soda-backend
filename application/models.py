@@ -99,7 +99,7 @@ class UserBehavior(models.Model):
 
     class Meta:
         # 确保每个用户对于同一目标的行为是唯一的
-        unique_together = ('user', 'target', 'behavior_type')
+        unique_together = ('user', 'target', 'behavior_type', 'timestamp')
 
     def __str__(self):
         return f"{self.user.username} {self.behavior_type} on {self.target.title} at {self.timestamp}"
