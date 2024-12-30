@@ -69,6 +69,7 @@ def create_post(request):
     title: str = data['title']
     content: str =  data['content']
     username: str = data['username']
+    prv_title: str = data['prv_title']
 
     if title == '' or content == '':
         return JsonResponse({'message': 'Title and content are required!'}, status=400)
@@ -78,7 +79,7 @@ def create_post(request):
         return JsonResponse({'error': 'Invalid title, it cannot be used as a valid filename'}, status=400)
 
     # check if the post already exists
-    if os.path.exists(os.path.join(POSTS_DIR, title)):
+    if os.path.exists(os.path.join(POSTS_DIR, title)) and not prv_title:
         # 直接修改原文件的内容
         try:
             with open(os.path.join(POSTS_DIR, title), 'w') as f:
@@ -89,6 +90,15 @@ def create_post(request):
         except Exception as e:
             return JsonResponse({'message': str(e)}, status=500)
         return JsonResponse({'message': 'Post updated successfully!'}, status=200)
+
+    if prv_title and os.path.exists(os.path.join(POSTS_DIR, prv_title)):
+        user = User.objects.get(username=username)
+        post = Post.objects.get(title=prv_title)
+        if post.author != user:
+            return JsonResponse({'message': 'You are not the author of this post!'}, status=403)
+        
+        os.remove(os.path.join(POSTS_DIR, prv_title))
+        post.delete()
     
     # create the post file
     file_path = os.path.join(POSTS_DIR, title)
@@ -116,6 +126,8 @@ def get_posts(request):
     try:
         posts = []
         for post in Post.objects.all():
+            if not os.path.exists(post.url):
+                continue
             with open(post.url, 'r') as f:
                 posts.append({
                     'title': post.title,
@@ -199,8 +211,25 @@ def get_post(request, post_name):
 
 def delete_post(request, post_name):
     file_path = os.path.join(MEDIA_ROOT, 'posts', post_name)
+    author = request.GET.get('author', '')
+    if author == '':
+        return JsonResponse({'error': 'Author not found!'}, status=400)
+    # 判断当前用户是否是作者
+    try:
+        user = User.objects.get(username=author)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'Author not found!'}, status=400)
+
+    try:
+        post = Post.objects.get(title=post_name)
+    except Post.DoesNotExist:
+        return JsonResponse({'error': 'Post not found!'}, status=404)
+
+    if user != post.author:
+        return JsonResponse({'error': 'You are not the author of this post!'}, status=403)
 
     if os.path.exists(file_path):
+        post.delete()
         os.remove(file_path)
         return JsonResponse({'message': 'Post deleted successfully!'}, status=200)
     else:
@@ -215,6 +244,5 @@ def pal_query(request):
     users = User.objects.filter(username__icontains=query)
     # 将users转化为json格式
     users_json = [user.username for user in users]
-    print(users_json)
 
     return JsonResponse({'data': users_json})
